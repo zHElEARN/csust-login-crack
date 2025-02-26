@@ -5,6 +5,9 @@ import requests
 import tempfile
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_location_parameters() -> Dict[str, str]:

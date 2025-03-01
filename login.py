@@ -9,6 +9,9 @@ from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
 
+script_dir = Path(__file__).resolve().parent
+os.chdir(script_dir)
+
 # 加载环境变量
 load_dotenv()
 
@@ -20,37 +23,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 条件导入大模型相关库
-if os.getenv("USE_VLM", "false").lower() == "true":
+# 验证码相关环境变量
+USE_CNN = os.getenv("USE_CNN", "false").lower() == "true"
+CNN_MODEL_PATH = os.getenv("CNN_MODEL_PATH", "")
+CNN_MAX_RETRY = int(os.getenv("CNN_MAX_RETRY", 5))  # 默认重试5次
+
+
+# 检查是否联网的函数
+def is_online() -> bool:
+    """检测当前网络状态"""
     try:
-        from captcha_model import CaptchaModel
-    except ImportError:
-        logger.warning("无法导入大模型库，将使用手动模式")
-        CaptchaModel = None
-else:
-    CaptchaModel = None
+        # 使用generate_204页面检测是否联网
+        response = requests.get("http://connect.rom.miui.com/generate_204", timeout=5)
+        return response.status_code == 204
+    except requests.RequestException:
+        return False
+
+
+if __name__ == "__main__":
+    if is_online():
+        logger.info("当前已检测到网络连接，无需登录")
+        exit(0)
+
+
+try:
+    if USE_CNN:
+        from cnn_captcha.predictor import CNNPredictor
+except ImportError:
+    logger.warning("无法导入CNN模型相关库")
+    USE_CNN = False
 
 
 class LoginSession:
     """封装登录流程的会话管理"""
 
-    VLM_MODEL_PATH = os.getenv("VLM_MODEL_PATH", "")
-    VLM_MAX_RETRY = int(os.getenv("VLM_MAX_RETRY", 5))  # 默认重试5次
-
     def __init__(self) -> None:
         self.session = requests.Session()
-        self.captcha_model: Optional[Any] = None
+        self.captcha_predictor: Optional[CNNPredictor] = None
         self.retry_count = 0
         self._initialize_captcha_processor()
 
     def _initialize_captcha_processor(self) -> None:
         """初始化验证码处理器"""
-        if CaptchaModel is not None and self.VLM_MODEL_PATH:
+        if USE_CNN:
             try:
-                self.captcha_model = CaptchaModel(self.VLM_MODEL_PATH)
-                logger.info("视觉大模型验证码处理器已启用")
+                self.captcha_predictor = CNNPredictor(CNN_MODEL_PATH)
+                logger.info("CNN验证码处理器已启用")
             except Exception as e:
-                logger.error(f"大模型初始化失败: {str(e)}")
+                logger.error(f"CNN模型初始化失败: {str(e)}")
                 raise
 
     def _get_captcha_image(self) -> bytes:
@@ -67,26 +87,21 @@ class LoginSession:
             logger.error(f"获取验证码失败: {e}")
             raise RuntimeError("无法获取验证码")
 
-    def _handle_vlm_captcha(self, image_data: bytes) -> str:
-        """大模型处理验证码"""
-        if self.VLM_MAX_RETRY >= 0 and self.retry_count >= self.VLM_MAX_RETRY:
-            raise RuntimeError(f"超过最大重试次数 {self.VLM_MAX_RETRY}")
-
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            f.write(image_data)
-            temp_path = Path(f.name)
+    def _handle_cnn_captcha(self, image_data: bytes) -> str:
+        """CNN模型处理验证码"""
+        if self.retry_count >= CNN_MAX_RETRY and CNN_MAX_RETRY >= 0:
+            raise RuntimeError(f"超过最大重试次数 {CNN_MAX_RETRY}")
 
         try:
-            raw, cleaned = self.captcha_model.process_image(temp_path)  # type: ignore
-            logger.debug(f"原始识别结果: {raw} -> 清洗后: {cleaned}")
-
-            if len(cleaned) == 4:
+            raw = self.captcha_predictor.predict(image_data)
+            cleaned = raw.strip().upper()
+            if len(cleaned) == 4 and cleaned.isalnum():
                 logger.info(f"验证码识别结果: {cleaned}")
                 return cleaned
             raise ValueError("无效的验证码格式")
-        finally:
-            temp_path.unlink()
+        except Exception as e:
             self.retry_count += 1
+            raise
 
     def _handle_manual_captcha(self, image_data: bytes) -> str:
         """手动输入处理验证码"""
@@ -108,9 +123,10 @@ class LoginSession:
         """获取并处理验证码"""
         image_data = self._get_captcha_image()
 
-        if self.captcha_model:
-            return self._handle_vlm_captcha(image_data)
-        return self._handle_manual_captcha(image_data)
+        if USE_CNN:
+            return self._handle_cnn_captcha(image_data)
+        else:
+            return self._handle_manual_captcha(image_data)
 
     def verify_captcha(self, captcha: str) -> bool:
         """验证码校验"""

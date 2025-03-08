@@ -6,6 +6,7 @@
 
 - 安装相关依赖：
   ```bash
+  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 # replace with your cuda version
   pip install -r requirements.txt
   ```
 
@@ -44,6 +45,18 @@ python login.py
 ### 手动输入验证码
 
 如果没有启用 CNN 模型，脚本会自动打开验证码图片，并要求手动输入验证码。验证码应为 4 位字母数字组合，不区分大小写。
+
+###  定时模式
+
+在启用 CNN 验证码识别的基础上，还需额外配置环境变量：
+
+- `DAEMON_EXEC_INTERVAL`：守护进程定时执行主脚本的间隔（单位为分钟，默认为 `5`）。
+
+配置后，运行守护进程 `daemon.py` 并保持后台运行即可定时检查登录状态并自动尝试登录。
+
+```bash
+python daemon.py
+```
 
 ## 工作原理
 

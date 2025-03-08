@@ -8,6 +8,7 @@ from urllib.parse import urlparse, parse_qs
 from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
+from logging.handlers import TimedRotatingFileHandler
 
 script_dir = Path(__file__).resolve().parent
 os.chdir(script_dir)
@@ -15,11 +16,25 @@ os.chdir(script_dir)
 # 加载环境变量
 load_dotenv()
 
+log_dir = "logs"
+os.makedirs(log_dir, exist_ok=True)
+
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("login.log"), logging.StreamHandler()],
+    handlers=[
+        TimedRotatingFileHandler(
+            filename=os.path.join(log_dir, "login.log"),
+            when="midnight",
+            interval=1,
+            backupCount=7,
+            encoding="utf-8",
+            utc=False,
+        ),
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger(__name__)
 

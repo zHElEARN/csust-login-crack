@@ -1,2 +1,5 @@
+Pillow==11.1.0
 python-dotenv==1.0.1
 Requests==2.32.3
+torch==2.6.0+cu126
+torchvision==0.21.0+cu126

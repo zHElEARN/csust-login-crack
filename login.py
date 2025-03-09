@@ -1,14 +1,15 @@
+import json
+import logging
 import os
 import re
-import json
-import requests
 import tempfile
-import logging
-from urllib.parse import urlparse, parse_qs
-from typing import Dict, Any, Optional, Tuple
-from pathlib import Path
-from dotenv import load_dotenv
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
+
+import requests
+from dotenv import load_dotenv
 
 script_dir = Path(__file__).resolve().parent
 os.chdir(script_dir)

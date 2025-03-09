@@ -1,14 +1,15 @@
+import json
+import logging
 import os
 import re
-import json
-import requests
 import tempfile
-import logging
-from urllib.parse import urlparse, parse_qs
-from typing import Dict, Any, Optional, Tuple
-from pathlib import Path
-from dotenv import load_dotenv
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
+
+import requests
+from dotenv import load_dotenv
 
 script_dir = Path(__file__).resolve().parent
 os.chdir(script_dir)
@@ -43,13 +44,19 @@ USE_CNN = os.getenv("USE_CNN", "false").lower() == "true"
 CNN_MODEL_PATH = os.getenv("CNN_MODEL_PATH", "")
 CNN_MAX_RETRY = int(os.getenv("CNN_MAX_RETRY", 5))  # 默认重试5次
 
+# 代理相关参数
+proxies = {
+    "http": None,
+    "https": None,
+}
+
 
 # 检查是否联网的函数
 def is_online() -> bool:
     """检测当前网络状态"""
     try:
         # 使用generate_204页面检测是否联网
-        response = requests.get("http://connect.rom.miui.com/generate_204", timeout=5)
+        response = requests.get("http://connect.rom.miui.com/generate_204", timeout=5, proxies=proxies)
         return response.status_code == 204
     except requests.RequestException:
         return False
@@ -95,6 +102,7 @@ class LoginSession:
                 "https://login.csust.edu.cn:802/eportal/captcha",
                 stream=True,
                 timeout=10,
+                proxies=proxies,
             )
             response.raise_for_status()
             return response.content
@@ -158,6 +166,7 @@ class LoginSession:
                 "https://login.csust.edu.cn:802/eportal/portal/captcha/check",
                 params=params,
                 timeout=10,
+                proxies=proxies,
             )
             response.raise_for_status()
             data = self._parse_callback(response.text)
@@ -191,6 +200,7 @@ class LoginSession:
                 "https://login.csust.edu.cn:802/eportal/portal/login",
                 params=params,
                 timeout=15,
+                proxies=proxies,
             )
             response.raise_for_status()
             data = self._parse_callback(response.text)
@@ -212,7 +222,7 @@ class LoginSession:
 def get_location_parameters() -> Dict[str, str]:
     """获取重定向地址中的查询参数"""
     try:
-        response = requests.get("http://10.10.10.10/", allow_redirects=False, timeout=5)
+        response = requests.get("http://10.10.10.10/", allow_redirects=False, timeout=5, proxies=proxies)
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"获取定位参数失败: {e}")

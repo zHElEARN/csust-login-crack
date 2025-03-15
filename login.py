@@ -6,7 +6,7 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
-
+import urllib3
 import requests
 from dotenv import load_dotenv
 
@@ -15,6 +15,9 @@ os.chdir(script_dir)
 
 # 加载环境变量
 load_dotenv()
+
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
@@ -39,12 +42,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+proxies = {"http": None, "https": None}
+
+
 # 检查是否联网的函数
 def is_online() -> bool:
     """检测当前网络状态"""
     try:
         # 使用generate_204页面检测是否联网
-        response = requests.get("http://connect.rom.miui.com/generate_204", timeout=5)
+        response = requests.get(
+            "http://connect.rom.miui.com/generate_204",
+            timeout=5,
+            proxies=proxies,
+        )
         return response.status_code == 204
     except requests.RequestException:
         return False
@@ -77,7 +87,9 @@ class LoginSession:
             response = self._session.get(
                 "https://login.csust.edu.cn:802/eportal/portal/login",
                 params=params,
+                proxies=proxies,
                 timeout=15,
+                verify=False,
             )
             response.raise_for_status()
             data = self._parse_callback(response.text)
@@ -100,7 +112,7 @@ class LoginSession:
         """获取重定向地址中的查询参数"""
         try:
             response = requests.get(
-                "http://10.10.10.10/", allow_redirects=False, timeout=5
+                "http://10.10.10.10/", allow_redirects=False, timeout=5, proxies=proxies
             )
             response.raise_for_status()
         except requests.RequestException as e:

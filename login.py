@@ -6,8 +6,9 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
-import urllib3
+
 import requests
+import urllib3
 from dotenv import load_dotenv
 
 script_dir = Path(__file__).resolve().parent
@@ -52,8 +53,8 @@ def is_online() -> bool:
         # 使用generate_204页面检测是否联网
         response = requests.get(
             "http://connect.rom.miui.com/generate_204",
-            timeout=5,
             proxies=proxies,
+            timeout=5,
         )
         return response.status_code == 204
     except requests.RequestException:
@@ -88,8 +89,8 @@ class LoginSession:
                 "https://login.csust.edu.cn:802/eportal/portal/login",
                 params=params,
                 proxies=proxies,
-                timeout=15,
                 verify=False,
+                timeout=9,
             )
             response.raise_for_status()
             data = self._parse_callback(response.text)
@@ -112,7 +113,7 @@ class LoginSession:
         """获取重定向地址中的查询参数"""
         try:
             response = requests.get(
-                "http://10.10.10.10/", allow_redirects=False, timeout=5, proxies=proxies
+                "http://10.10.10.10/", allow_redirects=False, proxies=proxies, timeout=6
             )
             response.raise_for_status()
         except requests.RequestException as e:

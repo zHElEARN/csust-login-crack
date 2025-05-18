@@ -138,7 +138,7 @@ def main() -> int:
 
         if is_online():
             logger.info("当前已检测到网络连接，无需登录")
-            exit(0)
+            return 0
 
         while True:
             session = LoginSession()
